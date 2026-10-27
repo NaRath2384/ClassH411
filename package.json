@@ -1,0 +1,15 @@
+{
+  "name": "class-attendance-system",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Khmer class attendance system with Node.js and SQLite",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check app.js && node --check test/server.test.js && node --check test/frontend.test.js",
+    "test": "node --test"
+  }
+}

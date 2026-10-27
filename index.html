@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ប្រព័ន្ធគ្រប់គ្រងវត្តមានសិស្ស - Khmer Student Attendance</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Khmer (Kantumruy Pro / Siemreap / Battambang) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:ital,wght@0,300..700;1,300..700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        },
+                        present: '#10b981', // green
+                        permission: '#f59e0b', // yellow/orange
+                        absent: '#ef4444', // red
+                        late: '#3b82f6', // blue
+                    },
+                    fontFamily: {
+                        khmer: ['Kantumruy Pro', 'Siemreap', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Kantumruy Pro', sans-serif;
+            background-color: #f8fafc;
+        }
+        body.saving button, body.saving select, body.saving input { pointer-events: none; opacity: .65; }
+        /* Custom scrollbar for table container */
+        .custom-scroll::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            body {
+                background: white;
+            }
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-gradient-to-r from-brand-800 to-brand-600 text-white shadow-lg sticky top-0 z-30 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <!-- Logo & Title -->
+                <div class="flex items-center space-x-3 space-x-reverse">
+                    <div class="bg-white/10 p-2.5 rounded-xl backdrop-blur-md border border-white/20">
+                        <i class="fa-solid fa-user-graduate text-2xl text-amber-300"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg leading-tight sm:text-xl">ប្រព័ន្ធគ្រប់គ្រងវត្តមានសិស្ស</h1>
+                        <p class="text-xs text-brand-100 opacity-90 hidden sm:block">សាលារៀនឌីជីថល - បន្ទប់សិក្សាឆ្លាតវៃ</p>
+                    </div>
+                </div>
+
+                <!-- Action Toolbar Right -->
+                <div class="flex items-center space-x-2 sm:space-x-4">
+                    <div class="text-right hidden md:block">
+                        <div id="liveClock" class="text-xs font-semibold text-brand-100">--:--:--</div>
+                        <div id="liveDate" class="text-xs opacity-75">--/--/----</div>
+                    </div>
+
+                    <!-- Role Indicator & Login/Logout Button -->
+                    <div id="authStatusContainer" class="flex items-center space-x-2">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+
+                    <button onclick="exportCSV()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-medium px-3 py-2 rounded-lg flex items-center transition shadow-sm active:scale-95" title="ទាញយកជា CSV">
+                        <i class="fa-solid fa-file-excel mr-0 sm:mr-1.5 text-base"></i>
+                        <span class="hidden sm:inline">ទាញយក CSV</span>
+                    </button>
+                    <button onclick="window.print()" class="bg-white/10 hover:bg-white/20 text-white text-xs sm:text-sm font-medium px-3 py-2 rounded-lg flex items-center transition border border-white/20 active:scale-95" title="បោះពុម្ព">
+                        <i class="fa-solid fa-print mr-0 sm:mr-1.5 text-base"></i>
+                        <span class="hidden sm:inline">បោះពុម្ព</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Role Notice Banner for Visitors -->
+    <div id="visitorBanner" class="bg-amber-500/10 border-b border-amber-500/20 text-amber-800 text-xs py-2 px-4 text-center font-medium hidden no-print">
+        <i class="fa-solid fa-eye mr-1.5 text-amber-600"></i>
+        សូមចូលប្រព័ន្ធដើម្បីមើល និងគ្រប់គ្រងទិន្នន័យសិស្ស។ Sign in to view and manage students and attendance.
+    </div>
+
+    <!-- Main Navigation Tabs -->
+    <div class="bg-white border-b border-slate-200 sticky top-16 z-20 shadow-sm no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav class="flex space-x-2 sm:space-x-8 overflow-x-auto custom-scroll py-2" aria-label="Tabs">
+                <button onclick="switchTab('take-attendance')" id="tab-take-attendance" class="tab-btn inline-flex items-center px-4 py-2.5 border-b-2 font-medium text-sm whitespace-nowrap rounded-t-lg transition-colors border-brand-600 text-brand-600 bg-brand-50/50">
+                    <i class="fa-solid fa-clipboard-user mr-2 text-base"></i>
+                    ចុះវត្តមានប្រចាំថ្ងៃ
+                </button>
+                <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn inline-flex items-center px-4 py-2.5 border-b-2 font-medium text-sm whitespace-nowrap border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300">
+                    <i class="fa-solid fa-chart-pie mr-2 text-base"></i>
+                    របាយការណ៍ & ស្ថិតិ
+                </button>
+                <button onclick="switchTab('students')" id="tab-students" class="tab-btn inline-flex items-center px-4 py-2.5 border-b-2 font-medium text-sm whitespace-nowrap border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300">
+                    <i class="fa-solid fa-users-gear mr-2 text-base"></i>
+                    គ្រប់គ្រងបញ្ជីសិស្ស
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- ==================== SECTION 1: TAKE ATTENDANCE ==================== -->
+        <section id="sec-take-attendance" class="tab-content block space-y-6">
+            <!-- Filter & Config Card -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 sm:p-5">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
+                    <!-- Date Selection -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">កាលបរិច្ឆេទ (Date)</label>
+                        <input type="date" id="attendanceDate" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none transition" onchange="loadAttendanceForSelectedDate()">
+                    </div>
+                    <!-- Session Selection -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">វេន / ម៉ោងសិក្សា (Session)</label>
+                        <select id="attendanceSession" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none transition" onchange="loadAttendanceForSelectedDate()">
+                            <option value="ព្រឹក">ព្រឹក (Morning)</option>
+                            <option value="រសៀល">រសៀល (Afternoon)</option>
+                            <option value="យប់">យប់ (Evening)</option>
+                            <option value="ម៉ោងទី១">ម៉ោងទី ១ (Hour 1)</option>
+                            <option value="ម៉ោងទី២">ម៉ោងទី ២ (Hour 2)</option>
+                        </select>
+                    </div>
+                    <!-- Search Input -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">ស្វែងរកសិស្ស</label>
+                        <div class="relative">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                            <input type="text" id="searchAttendanceInput" placeholder="ឈ្មោះ ឬ អត្តលេខ..." oninput="renderAttendanceList()" class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none transition">
+                        </div>
+                    </div>
+                    <!-- Mark All Button -->
+                    <div>
+                        <button id="markAllBtn" onclick="markAllPresent()" class="w-full bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 font-medium py-2 px-4 rounded-xl transition flex items-center justify-center space-x-2 text-sm active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fa-solid fa-check-double text-emerald-600"></i>
+                            <span>វត្តមានទាំងអស់ (Mark All)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Chips Bar for Today -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-white text-sm">
+                <div class="bg-emerald-600/90 backdrop-blur rounded-xl p-3 shadow-sm border border-emerald-500 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-emerald-100 font-medium">វត្តមាន (Present)</p>
+                        <p class="text-xl font-bold mt-0.5" id="count-present">0</p>
+                    </div>
+                    <i class="fa-solid fa-circle-check text-2xl text-emerald-200"></i>
+                </div>
+                <div class="bg-amber-500/90 backdrop-blur rounded-xl p-3 shadow-sm border border-amber-400 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-amber-100 font-medium">ច្បាប់ (Permission)</p>
+                        <p class="text-xl font-bold mt-0.5" id="count-permission">0</p>
+                    </div>
+                    <i class="fa-solid fa-envelope-open-text text-2xl text-amber-200"></i>
+                </div>
+                <div class="bg-rose-600/90 backdrop-blur rounded-xl p-3 shadow-sm border border-rose-500 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-rose-100 font-medium">អវត្តមាន (Absent)</p>
+                        <p class="text-xl font-bold mt-0.5" id="count-absent">0</p>
+                    </div>
+                    <i class="fa-solid fa-circle-xmark text-2xl text-rose-200"></i>
+                </div>
+                <div class="bg-blue-600/90 backdrop-blur rounded-xl p-3 shadow-sm border border-blue-500 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-blue-100 font-medium">យឺត (Late)</p>
+                        <p class="text-xl font-bold mt-0.5" id="count-late">0</p>
+                    </div>
+                    <i class="fa-solid fa-clock text-2xl text-blue-200"></i>
+                </div>
+            </div>
+
+            <p id="unmarkedCount" class="text-sm text-slate-500" aria-live="polite">Unmarked: 0</p>
+            <!-- Attendance Interactive Student Cards/Table -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+                <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                    <h2 class="font-bold text-slate-700 flex items-center text-sm sm:text-base">
+                        <i class="fa-solid fa-list-check text-brand-600 mr-2"></i>
+                        បញ្ជីឈ្មោះស្រង់វត្តមានសិស្ស
+                    </h2>
+                    <span id="attendanceTotalCount" class="text-xs bg-brand-100 text-brand-800 font-semibold px-2.5 py-1 rounded-full">
+                        សរុប: 0 នាក់
+                    </span>
+                </div>
+
+                <!-- Desktop / Tablet View (List) -->
+                <div class="divide-y divide-slate-100" id="attendanceListContainer">
+                    <!-- Populated dynamically via JavaScript -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== SECTION 2: DASHBOARD & REPORTS ==================== -->
+        <section id="sec-dashboard" class="tab-content hidden space-y-6">
+            <!-- Filter Bar for Stats -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="p-3 bg-brand-100 text-brand-700 rounded-xl">
+                        <i class="fa-solid fa-chart-column text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-slate-800 text-base">សង្ខេបរបាយការណ៍វត្តមានសិស្ស</h2>
+                        <p class="text-xs text-slate-500">Recorded marks only. Rate = (Present + Late × 0.8) ÷ recorded marks. Week starts Monday.</p>
+                    </div>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                    <button data-stats-filter="all" aria-pressed="true" onclick="filterStats('all')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand-600 text-white">ទាំងអស់ (All Time)</button>
+                    <button data-stats-filter="month" aria-pressed="false" onclick="filterStats('month')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 text-slate-600">ខែនេះ (This Month)</button>
+                    <button data-stats-filter="week" aria-pressed="false" onclick="filterStats('week')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-100 text-slate-600">សប្តាហ៍នេះ (This Week)</button>
+                </div>
+            </div>
+
+            <!-- Overview Metrics Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-500 uppercase">សិស្សសរុប</span>
+                        <span class="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><i class="fa-solid fa-users"></i></span>
+                    </div>
+                    <div class="mt-2 flex items-baseline justify-between">
+                        <span class="text-2xl font-black text-slate-800" id="dashTotalStudents">0</span>
+                        <span class="text-xs text-slate-400">នាក់</span>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-500 uppercase">អត្រាវត្តមានមធ្យម</span>
+                        <span class="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><i class="fa-solid fa-chart-line"></i></span>
+                    </div>
+                    <div class="mt-2 flex items-baseline justify-between">
+                        <span class="text-2xl font-black text-emerald-600" id="dashAvgRate">0%</span>
+                        <span class="text-xs text-emerald-600 font-semibold" id="dashAvgStatus">ល្អប្រសើរ</span>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-500 uppercase">ច្បាប់សរុប (សន្លឹក)</span>
+                        <span class="p-2 bg-amber-50 text-amber-600 rounded-lg"><i class="fa-solid fa-envelope"></i></span>
+                    </div>
+                    <div class="mt-2 flex items-baseline justify-between">
+                        <span class="text-2xl font-black text-amber-600" id="dashTotalPerm">0</span>
+                        <span class="text-xs text-slate-400">លើក</span>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-500 uppercase">អវត្តមានឥតច្បាប់</span>
+                        <span class="p-2 bg-rose-50 text-rose-600 rounded-lg"><i class="fa-solid fa-user-xmark"></i></span>
+                    </div>
+                    <div class="mt-2 flex items-baseline justify-between">
+                        <span class="text-2xl font-black text-rose-600" id="dashTotalAbsent">0</span>
+                        <span class="text-xs text-slate-400">លើក</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Student Performance Table -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                    <h3 class="font-bold text-slate-800 text-sm sm:text-base flex items-center">
+                        <i class="fa-solid fa-bars-progress text-brand-600 mr-2"></i>
+                        ស្ថិតិវត្តមានលម្អិតតាមសិស្សម្នាក់ៗ
+                    </h3>
+                    <input type="text" id="reportSearch" placeholder="ស្វែងរកក្នុងរបាយការណ៍..." oninput="renderReportTable()" class="bg-slate-50 border border-slate-300 rounded-lg px-3 py-1.5 text-xs focus:ring-2 focus:ring-brand-500 focus:outline-none w-full sm:w-64">
+                </div>
+
+                <div class="overflow-x-auto custom-scroll">
+                    <table class="w-full text-left border-collapse min-w-[650px]">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 text-xs uppercase font-semibold border-b border-slate-200">
+                                <th class="py-3 px-4">សិស្ស</th>
+                                <th class="py-3 px-4 text-center">វត្តមាន</th>
+                                <th class="py-3 px-4 text-center">ច្បាប់</th>
+                                <th class="py-3 px-4 text-center">អវត្តមាន</th>
+                                <th class="py-3 px-4 text-center">យឺត</th>
+                                <th class="py-3 px-4 w-48">ភាគរយវត្តមាន (Attendance Rate)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportTableBody" class="divide-y divide-slate-100 text-sm">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== SECTION 3: STUDENT MANAGEMENT ==================== -->
+        <section id="sec-students" class="tab-content hidden space-y-6">
+            <!-- Action bar & Form Toggle -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                <div>
+                    <h2 class="font-bold text-slate-800 text-base">គ្រប់គ្រងបញ្ជីឈ្មោះសិស្ស</h2>
+                    <p class="text-xs text-slate-500">បន្ថែម កែប្រែ ឬលុបព័ត៌មានសិស្សក្នុងថ្នាក់</p>
+                </div>
+                <button id="addStudentBtn" onclick="openStudentModal()" class="bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-md transition flex items-center justify-center space-x-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                    <i class="fa-solid fa-user-plus"></i>
+                    <span>បន្ថែមសិស្សថ្មី</span>
+                </button>
+            </div>
+
+            <!-- Student Grid List -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="studentCardsGrid">
+                <!-- Populated dynamically -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal for Admin Login -->
+    <div id="loginModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all">
+            <div class="bg-gradient-to-r from-brand-800 to-brand-600 text-white p-5 text-center relative">
+                <button onclick="closeLoginModal()" class="absolute right-4 top-4 text-white/80 hover:text-white text-lg w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+                <div class="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-2 border border-white/20">
+                    <i class="fa-solid fa-user-shield text-2xl text-amber-300"></i>
+                </div>
+                <h3 id="loginTitle" class="font-bold text-lg">ចូលប្រព័ន្ធជា Admin</h3>
+                <p id="loginHelp" class="text-xs text-brand-100 mt-0.5">សូមបញ្ចូល Username និង Password របស់អ្នក</p>
+            </div>
+
+            <form onsubmit="handleLogin(event)" class="p-5 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Username</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user absolute left-3 top-3 text-slate-400 text-sm"></i>
+                        <input type="text" id="loginUsername" required placeholder="បញ្ចូល Username..." class="w-full border border-slate-300 rounded-xl pl-9 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Password</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-3 top-3 text-slate-400 text-sm"></i>
+                        <input type="password" id="loginPassword" required placeholder="បញ្ចូល Password..." class="w-full border border-slate-300 rounded-xl pl-9 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="pt-2 flex justify-end space-x-2">
+                    <button type="button" onclick="closeLoginModal()" class="w-1/2 py-2.5 border border-slate-300 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition">
+                        បោះបង់
+                    </button>
+                    <button type="submit" class="w-1/2 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold shadow-md transition flex items-center justify-center space-x-1">
+                        <i class="fa-solid fa-right-to-bracket mr-1"></i> ចូលប្រព័ន្ធ
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal for Adding/Editing Student -->
+    <div id="studentModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+            <!-- Modal Header -->
+            <div class="bg-gradient-to-r from-brand-700 to-brand-600 text-white p-4 flex justify-between items-center">
+                <h3 class="font-bold text-base flex items-center" id="modalTitle">
+                    <i class="fa-solid fa-user-pen mr-2"></i> បន្ថែមសិស្សថ្មី
+                </h3>
+                <button onclick="closeStudentModal()" class="text-white/80 hover:text-white text-lg w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/10 transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Form -->
+            <form id="studentForm" onsubmit="saveStudent(event)" class="p-5 space-y-4">
+                <input type="hidden" id="studentEditId">
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">អត្តលេខសិស្ស (ID) <span class="text-rose-500">*</span></label>
+                    <input type="text" id="studentIdInput" required placeholder="ឧទាហរណ៍: STU-001" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">គោត្តមនាម និងនាម (Name) <span class="text-rose-500">*</span></label>
+                    <input type="text" id="studentNameInput" required placeholder="ឧទាហរណ៍: សុខ ចាន់" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">ភេទ (Gender) <span class="text-rose-500">*</span></label>
+                    <select id="studentGenderInput" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                        <option value="ប្រុស">ប្រុស (Male)</option>
+                        <option value="ស្រី">ស្រី (Female)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">រូបភាពតំណាង (Avatar)</label>
+                    <div class="flex items-center space-x-3">
+                        <select id="studentAvatarInput" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                            <option value="👨‍🎓">👨‍🎓 សិស្សប្រុស (Male)</option>
+                            <option value="👩‍🎓">👩‍🎓 សិស្សស្រី (Female)</option>
+                            <option value="🧑‍🎓">🧑‍🎓 សិស្សទូទៅ (Neutral)</option>
+                            <option value="⭐">⭐ ផ្កាយ (Star)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="pt-2 flex justify-end space-x-2">
+                    <button type="button" onclick="closeStudentModal()" class="px-4 py-2 border border-slate-300 text-slate-600 rounded-xl text-sm font-medium hover:bg-slate-50 transition">
+                        បោះបង់
+                    </button>
+                    <button type="submit" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold shadow-md transition">
+                        រក្សាទុក
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 bg-slate-800 text-white px-4 py-3 rounded-xl shadow-xl flex items-center space-x-3 transition-all transform translate-y-20 opacity-0 pointer-events-none">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+        <span id="toastMsg" class="text-sm font-medium">ប្រតិបត្តិការជោគជ័យ!</span>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 mt-auto no-print">
+        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500">
+            <p>© 2026 ប្រព័ន្ធគ្រប់គ្រងវត្តមានសិស្សថ្នាក់រៀន (Khmer Classroom Attendance System)</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script src="/app.js" defer></script>
+</body>
+</html>
